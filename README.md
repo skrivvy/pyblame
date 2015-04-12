@@ -1,5 +1,4 @@
 # PyBlame
-Browse Git history of a file by navigating using 'blame' annotations.  Written in PyQt4 and Python 2.7.
 
 This program provides an interactive, visual wrapper for the Git blame command.
 
@@ -8,7 +7,9 @@ It allows you to browse the history of a file with line-by-line annotations abou
 To install, ensure that Python 2.7 and PyQt4 are installed on your system:
 
 Mac:
+
 $ brew install python2.7 pyqt
 
 Linux:
+
 $ sudo apt-get install python2.7 python-qt4
