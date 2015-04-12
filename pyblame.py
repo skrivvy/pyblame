@@ -95,7 +95,7 @@ class GitModel(QObject):
         for rev in self.revs:
             if rev.startswith(sha):
                 self.setRev(index)
-            break
+                break
             index += 1
         if index == len(self.revs):
             print "couldn't find sha in log: " + sha
@@ -117,7 +117,8 @@ class GitModel(QObject):
                 if line.startswith(self.abbrev):
                     self.firstDiff = index
                     break
-            index += 1
+                index += 1
+
 
     def loadDescription(self):
         if self.filename != None and self.revIdx >= 0:
@@ -186,18 +187,18 @@ class RevisionSlider(QSlider):
         self.setTickPosition(QSlider.TicksBothSides)
         self.setTickInterval(1)
         self.connect(self.git, SIGNAL("fileChanged()"), self.handleModelChanged)
-        #self.connect(self.git, SIGNAL("revChanged()"), self.handleModelChanged)
+        self.connect(self.git, SIGNAL("revChanged()"), self.handleModelChanged)
         self.connect(self, SIGNAL("valueChanged(int)"), self.handleValueChanged)
         self.handleModelChanged()
 
     def handleModelChanged(self):
         self.setMaximum(len(self.git.revs) - 1)
         self.setMinimum(0)
-        print "slider update value: " + str(self.git.revIdx)
+        print "slider updated: " + str(self.git.revIdx)
         self.setValue(self.git.revIdx)
 
     def handleValueChanged(self, value):
-        print "slider value changed: " + str(value)
+        print "slider user changed: " + str(value)
         self.git.setRev(value)
 
 
