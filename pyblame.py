@@ -20,7 +20,9 @@
 # Linux:
 # $ sudo apt-get install python2.7 python-qt4
 #
-#
+# Usage:
+# $ cd <git repo>
+# $ python pyblame.py <file in git repo>
 #
 ####################################################################
 
@@ -256,6 +258,7 @@ class MyWindow(QMainWindow):
         # create the model
         self.git = GitModel(self)
         self.model = MyListModel(self.git, self)
+        self.connect(self.git, SIGNAL("fileChanged()"), self.updateTitle)
 
         # create the list
         lv = BlameListView()
@@ -281,7 +284,7 @@ class MyWindow(QMainWindow):
         openAct = QAction("&Open...", self)
         openAct.setShortcut("Ctrl+O")
         openAct.setStatusTip("Open a file")
-        self.connect(openAct, SIGNAL("triggered()"), self.git.setFile)
+        self.connect(openAct, SIGNAL("triggered()"), self.openFile)
 
         quitAct = QAction("&Quit", self)
         quitAct.setShortcut("Ctrl+Q")
@@ -303,19 +306,18 @@ class MyWindow(QMainWindow):
         self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
 
     def openFile(self):
-        default = self.model.filename
+        default = self.git.filename
         if default == None:
-            default = '/home/'
+            default = os.getcwd()
         filename = QFileDialog.getOpenFileName(self, "Open File", os.path.dirname(str(default)))
         if os.path.exists(filename):
-            self.setFile( filename )
+            self.git.setFile( filename )
 
-    def setFile(self, filename ):
+    def updateTitle(self):
         title = "PyBlame"
+        filename = self.git.filename
         if filename != None:
             title = title+" - "+os.path.basename(str(filename))
-            self.model.setFile( filename )
-            self.centralWidget().setModel(self.model)
         self.setWindowTitle(title)
 
     def commandComplete(self):
@@ -330,8 +332,13 @@ def main():
 
     # execute command and parse the output
     filename = None
-    if len(sys.argv) > 1:
-      filename = sys.argv[1]
+    if len(sys.argv) < 2:
+        print "Usage: pyblame.py <file>"
+        print "  Note that the current working directory must be a Git repository"
+        print "  and <file> must be a file in this repository."
+        sys.exit(1)
+
+    filename = sys.argv[1]
 
     w = MyWindow(filename)
     #w.setWindowIcon()
