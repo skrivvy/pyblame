@@ -68,6 +68,7 @@ class GitModel(QObject):
         self.description = None
         self.lines = []
         self.revs = []
+        self.filenames = []
         self.revIdx = -1
         self.sha = None
         self.abbrev = None
@@ -103,14 +104,19 @@ class GitModel(QObject):
             print "couldn't find sha in log: " + sha
 
     def loadRevs(self):
-        if self.filename == None:
-            self.revs = []
-        else:
-            self.revs = self.execResultAsList(["git", "rev-list", "--reverse", self.branch, str(self.filename)])
+        self.revs = []
+        self.filesnames = []
+        if self.filename != None:
+            result = self.execResultAsList(["git", "log", "--format=%H", "--name-only", "--follow", self.branch, "--", str(self.filename)])
+            # Strip blank lines
+            result = [i for i in result if len(i.strip()) > 0]
+            for i in reversed(range(len(result) / 2)):
+                self.revs.append(result[i * 2])
+                self.filenames.append(result[i * 2 + 1])
 
     def loadBlame(self):
         if self.filename != None and self.revIdx >= 0:
-            self.lines = self.execResultAsList(["git", "blame", str(self.filename), self.revs[self.revIdx]])
+            self.lines = self.execResultAsList(["git", "blame", "--follow", self.revs[self.revIdx], "--", self.filenames[self.revIdx]])
 
             # Find the index of the first line that changed in the current sha
             self.firstDiff = None
@@ -120,7 +126,6 @@ class GitModel(QObject):
                     self.firstDiff = index
                     break
                 index += 1
-
 
     def loadDescription(self):
         if self.filename != None and self.revIdx >= 0:
