@@ -15,7 +15,7 @@
 # system:
 #
 # Mac:
-# $ brew install python2.7 pyqt
+# $ brew install python pyqt
 #
 # Linux:
 # $ sudo apt-get install python2.7 python-qt4
@@ -41,16 +41,14 @@ import time
 
 ####################################################################
 def trace(method):
-
     def timed(*args, **kw):
         ts = time.time()
         result = method(*args, **kw)
         te = time.time()
-
         print('== %r (%r, %r) %2.2f sec' % (method.__name__, args, kw, te-ts))
         return result
-
     return timed
+
 
 ####################################################################
 class GitModel(QObject):
@@ -74,17 +72,17 @@ class GitModel(QObject):
         self.abbrev = None
         self.firstDiff = None
 
+    @trace
     def setFile( self, filein ):
         self.filename = filein
-        print "setting filename: " + self.filename
         self.loadRevs()
         self.setRev(len(self.revs) - 1)
         self.fileChanged.emit()
 
+    @trace
     def setRev( self, rev ):
         if rev == self.revIdx or rev < 0 or rev >= len(self.revs):
             return
-        print "setting rev: " + str(rev)
         self.revIdx = rev
         self.sha = self.revs[self.revIdx]
         self.abbrev = self.sha[0:8]
@@ -92,16 +90,16 @@ class GitModel(QObject):
         self.loadDescription()
         self.revChanged.emit()
 
+    @trace
     def setSha(self, sha):
         index = 0
-        print "setting sha: " + sha
         for rev in self.revs:
             if rev.startswith(sha):
                 self.setRev(index)
                 break
             index += 1
         if index == len(self.revs):
-            print "couldn't find sha in log: " + sha
+            print "ERROR: couldn't find sha in log: " + sha
 
     def loadRevs(self):
         self.revs = []
@@ -110,6 +108,7 @@ class GitModel(QObject):
             result = self.execResultAsList(["git", "log", "--format=%H", "--name-only", "--follow", self.branch, "--", str(self.filename)])
             # Strip blank lines
             result = [i for i in result if len(i.strip()) > 0]
+            # Split the output into a list of SHAs and a list of filenames for each SHA
             for i in reversed(range(len(result) / 2)):
                 self.revs.append(result[i * 2])
                 self.filenames.append(result[i * 2 + 1])
@@ -117,8 +116,7 @@ class GitModel(QObject):
     def loadBlame(self):
         if self.filename != None and self.revIdx >= 0:
             self.lines = self.execResultAsList(["git", "blame", "--follow", self.revs[self.revIdx], "--", self.filenames[self.revIdx]])
-
-            # Find the index of the first line that changed in the current sha
+            # Find the index of the first line that changed in the current rev
             self.firstDiff = None
             index = 0
             for line in self.lines:
@@ -133,19 +131,13 @@ class GitModel(QObject):
 
     @trace
     def execResultAsString(self, command):
+        print ">> exec: " + " ".join(command)
         output = check_output(command)
-        return output
-
-    def execResultAsList2(self, command):
-        commandStr = " ".join(command)
-        p = Popen(commandStr, shell=True, stdout=PIPE, stderr=PIPE)
-        output = []
-        for line in p.stdout:
-            output.append(line.strip())
         return output
 
     @trace
     def execResultAsList(self, command):
+        print ">> exec: " + " ".join(command)
         result = check_output(command)
         lines = result.splitlines()
         return lines
@@ -179,8 +171,8 @@ class BlameListView(QListView):
         if index != None:
             index.model().invokeAction(index)
 
+    @trace
     def handleRequestScroll(self, index):
-        print "scrolling to: " + str(index.row())
         self.scrollTo(index)
 
 
@@ -201,11 +193,9 @@ class RevisionSlider(QSlider):
     def handleModelChanged(self):
         self.setMaximum(len(self.git.revs) - 1)
         self.setMinimum(0)
-        print "slider updated: " + str(self.git.revIdx)
         self.setValue(self.git.revIdx)
 
     def handleValueChanged(self, value):
-        print "slider user changed: " + str(value)
         self.git.setRev(value)
 
 
@@ -236,10 +226,8 @@ class MyListModel(QAbstractListModel):
         return QVariant()
 
     def handleRevChanged(self):
-        print "resetting list model"
         self.reset()
         if self.git.firstDiff != None:
-            print "request scroll to: " + str(self.git.firstDiff)
             self.requestScroll.emit(self.index(self.git.firstDiff))
 
     def invokeAction(self, index):
@@ -277,6 +265,7 @@ class MyWindow(QMainWindow):
         dock.setWidget( self.model.output )
         self.addDockWidget(Qt.BottomDockWidgetArea, dock)
 
+        # Create the revision slider
         slider = RevisionSlider(self.git, self)
         dock = QDockWidget("Revisions", self);
         dock.setWidget(slider)
