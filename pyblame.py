@@ -31,6 +31,7 @@ import sys
 import os
 import glob
 import string
+import re
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4 import QtGui
@@ -45,7 +46,8 @@ def trace(method):
         ts = time.time()
         result = method(*args, **kw)
         te = time.time()
-        print('== %r (%r, %r) %2.2f sec' % (method.__name__, args, kw, te-ts))
+        # Uncomment for verbose logging
+        #print("== %r (%r, %r) %2.2f sec" % (method.__name__, args, kw, te-ts))
         return result
     return timed
 
@@ -71,6 +73,20 @@ class GitModel(QObject):
         self.sha = None
         self.abbrev = None
         self.firstDiff = None
+        self.repoRoot = self.getRepoRootPath()
+
+    def getRepoRootPath(self):
+        # Determine a path prefix to get us back to the repository root folder.
+        # This is needed because the blame command needs relative paths for files that no
+        # longer exist (i.e. to traverse history across file renames).
+        path = ""
+        root = self.execResultAsString(["git", "rev-parse", "--show-toplevel", self.branch]).splitlines()[0]
+        cwd = os.getcwd()
+        # Subtract the root from the CWD (and remove the first '/')
+        diff = cwd[len(root)+1:]
+        if len(diff) > 0:
+            path = re.sub(r"[^/]+", "..", diff) + "/"
+        return path
 
     @trace
     def setFile( self, filein ):
@@ -115,7 +131,10 @@ class GitModel(QObject):
 
     def loadBlame(self):
         if self.filename != None and self.revIdx >= 0:
-            self.lines = self.execResultAsList(["git", "blame", "--follow", self.revs[self.revIdx], "--", self.filenames[self.revIdx]])
+
+            # TODO: Use absolute path, get project root folder and prepend:
+            # git rev-parse --show-toplevel HEAD
+            self.lines = self.execResultAsList(["git", "blame", "--follow", self.revs[self.revIdx], "--", self.repoRoot + self.filenames[self.revIdx]])
             # Find the index of the first line that changed in the current rev
             self.firstDiff = None
             index = 0
